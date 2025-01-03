@@ -39,12 +39,12 @@ alter Credit amount (TAccount side d c) = TAccount side d (c+amount)
 applySingle :: SingleEntry -> AccountMap -> Either Error AccountMap
 applySingle (Single side name amount) accountMap = case Map.lookup name accountMap of
     Just tAccount -> Right $ Map.insert name (alter side amount tAccount) accountMap
-    Nothing -> Left $ AccountError (NotFound name)
+    Nothing -> Left $ NotFound name
 
 -- Accept a single entry into the Ledger
 acceptSingle :: Ledger -> SingleEntry -> Either Error Ledger
 acceptSingle (Ledger chartMap accountMap names) s@(Single _ name _) =
-    if name `elem` names then Left (AccountError (Dropped name)) else 
+    if name `elem` names then Left (Dropped name) else 
     case applySingle s accountMap of
         Left err -> Left err
         Right accountMap' -> Right $ Ledger chartMap accountMap' names
@@ -53,7 +53,7 @@ acceptSingle (Ledger chartMap accountMap names) s@(Single _ name _) =
 acceptMany :: [SingleEntry] -> Ledger -> Either Error Ledger
 acceptMany posts ledger
     | isBalanced posts = acceptUnbalanced posts ledger
-    | otherwise = Left $ TransactionError (NotBalanced posts)
+    | otherwise = Left $ NotBalanced posts
 
 -- Accept unbalanced entries into the Ledger
 acceptUnbalanced :: [SingleEntry] -> Ledger -> Either Error Ledger
@@ -64,8 +64,8 @@ closeActions :: ChartMap -> Name -> Either Error [Action]
 closeActions chartMap accName =
     case Map.lookup accName chartMap of
         Just (Regular Equity) -> Right $ closingPairs chartMap accName >>= toActions
-        Just _                -> Left $ AccountError (NotEquity accName)
-        _                     -> Left $ AccountError (NotFound accName)
+        Just _                -> Left $ NotEquity accName
+        _                     -> Left $ NotFound accName
     where toActions (fromName, toName) = [Transfer fromName toName, Deactivate fromName]
 
 transferEntry :: Name -> Name -> TAccount -> Entry
@@ -101,7 +101,6 @@ updateOffset chartMap accMap name contraName =
             Nothing -> accMap
     in (chartMap', accMap')
 
-
 data Book = Book {chartM :: ChartMap, ledgerM :: AccountMap, copy :: Maybe AccountMap}
 
 emptyBook :: Book
@@ -111,8 +110,7 @@ isRegular :: Role -> Bool
 isRegular (Regular _) = True
 isRegular _ = False
 
-
-allowOffset :: ChartMap -> Name -> Name -> Maybe AccountError
+allowOffset :: ChartMap -> Name -> Name -> Maybe Error
 allowOffset chartMap name contraName  
    | not (chartMap `includes` name) = Just $ NotFound name
    | chartMap `includes` contraName = Just $ AlreadyExists contraName
@@ -121,7 +119,7 @@ allowOffset chartMap name contraName
 
 update :: Primitive -> State Book (Maybe Error)  
 update p = do
-    let error e = return $ Just $ AccountError e
+    let error e = return $ Just e
     chart <- gets chartM
     ledger <- gets ledgerM
     copy <- gets copy 
@@ -173,7 +171,7 @@ run ledger (Close accName) = do
 run ledger (Transfer fromName toName) =
     case Map.lookup fromName (accounts ledger) of
         Just tAccount -> run ledger $ Post "Transfer entry" (transferEntry fromName toName tAccount)
-        Nothing -> Left $ AccountError (NotFound fromName)
+        Nothing -> Left $ NotFound fromName
 run (Ledger cm am ds) (Deactivate name) = Right $ Ledger cm am (name:ds)
 run ledger (End _) = Right ledger  -- assuming Finish does not change the ledger
 run ledger _ = Right ledger  -- other items

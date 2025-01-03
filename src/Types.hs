@@ -27,15 +27,14 @@ type ChartMap = Map.Map Name Role
 data SingleEntry = Single Side Name Amount deriving Show
 
 -- Error Handling
-data Error = AccountError AccountError | TransactionError TransactionError deriving Show
-data AccountError = NotFound Name 
-                  | NotUnique Name 
-                  | NotEquity Name 
-                  | NotRegular Name
-                  | Dropped Name 
-                  | AlreadyExists Name
-                  deriving Show
-data TransactionError = NotBalanced [SingleEntry] deriving Show
+data Error =  NotFound Name 
+            | NotUnique Name 
+            | NotEquity Name 
+            | NotRegular Name
+            | Dropped Name -- will go
+            | AlreadyExists Name
+            | NotBalanced [SingleEntry] 
+            deriving Show
 
 -- Ledger
 type Balances = Map.Map Name Amount

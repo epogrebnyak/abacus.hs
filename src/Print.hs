@@ -5,13 +5,13 @@ import Ledger()
 import qualified Data.Map as Map
 
 explain :: Error -> String
-explain (AccountError (NotFound name))         = "Account not found: " ++ name
-explain (AccountError (NotUnique name))        = "Duplicate account name: " ++ name
-explain (AccountError (NotEquity name))        = "Must be an equity account: " ++ name
-explain (AccountError (Dropped name))          = "Account deactivated: " ++ name
-explain (AccountError (NotRegular name))       = "Not regular account: " ++ name
-explain (AccountError (AlreadyExists name))    = "Account already exists: " ++ name
-explain (TransactionError (NotBalanced posts)) = "Entry not balanced: " ++ show posts -- may use sideSum
+explain (NotFound name)      = "Account not found: " ++ name
+explain (NotUnique name)     = "Duplicate account name: " ++ name
+explain (NotEquity name)     = "Must be an equity account: " ++ name
+explain (Dropped name)       = "Account deactivated: " ++ name
+explain (NotRegular name)    = "Not regular account: " ++ name
+explain (AlreadyExists name) = "Account already exists: " ++ name
+explain (NotBalanced posts)  = "Entry not balanced: " ++ show posts -- may use sideSum
 
 -- Print account names and balances by lines
 printAccountBalances :: Ledger -> IO ()
