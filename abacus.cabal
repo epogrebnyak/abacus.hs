@@ -23,7 +23,7 @@ name:               abacus
 version:            0.0.5
 
 -- A short (one-line) description of the package.
-synopsis:           Minimal double entry accounting engine for a flat chart of accounts
+synopsis:           Minimal double entry accounting system
 
 -- A longer description of the package.
 -- description:
