@@ -2,22 +2,19 @@ module Types where
 
 import qualified Data.Map as Map
 
--- Basic Types
 type Amount = Int  -- This could be Decimal E2
 type Name = String
-
--- Accounting Side
 data Side = Debit | Credit deriving (Show, Eq)
-
--- T-Account
 data TAccount = TAccount Side Amount Amount deriving Show
 
 accountBalance :: TAccount -> Amount
 accountBalance (TAccount Debit a b) = a - b
 accountBalance (TAccount Credit a b) = b - a
 
--- Account Map
 type AccountMap = Map.Map Name TAccount
+
+includes :: Ord a => Map.Map a b -> a -> Bool
+someMap `includes` name = Map.member name someMap    
 
 -- Account Types
 data T5 = Asset | Expense | Equity | Liability | Income deriving (Show, Eq)

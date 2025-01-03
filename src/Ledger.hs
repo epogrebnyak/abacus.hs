@@ -111,13 +111,11 @@ isRegular :: Role -> Bool
 isRegular (Regular _) = True
 isRegular _ = False
 
-isMember :: Name -> Map.Map Name a -> Bool
-isMember = Map.member
 
 allowOffset :: ChartMap -> Name -> Name -> Maybe AccountError
 allowOffset chartMap name contraName  
-   | not (isMember name chartMap) = Just $ NotFound name
-   | isMember contraName chartMap = Just $ AlreadyExists contraName
+   | not (chartMap `includes` name) = Just $ NotFound name
+   | chartMap `includes` contraName = Just $ AlreadyExists contraName
    | (isRegular <$> Map.lookup name chartMap) /= Just True = Just $ NotRegular name
    | otherwise = Nothing
 
@@ -143,14 +141,14 @@ update p = do
                   put $ Book chart' ledger' copy
                   return Nothing
         Record (Single side name amount) -> 
-            if not (isMember name ledger) then error (NotFound name) 
+            if not (ledger `includes` name) then error (NotFound name) 
             else do
                 let tAccount' = alter side amount (ledger Map.! name)
                 let ledger' = Map.insert name tAccount' ledger
                 put $ Book chart ledger' copy
                 return Nothing
         Drop name ->    
-            if not (isMember name ledger) then error (NotFound name) 
+            if not (ledger `includes` name) then error (NotFound name) 
             else do
                 let ledger' = Map.delete name ledger
                 put $ Book chart ledger' copy
