@@ -34,12 +34,13 @@ data Error =  NotFound Name
             | Dropped Name -- will go
             | AlreadyExists Name
             | NotBalanced [SingleEntry] 
+            | OK
             deriving Show
 
 -- Ledger
 type Balances = Map.Map Name Amount
 data Ledger = Ledger {
-    chart :: ChartMap,
+    _chartMap :: ChartMap,
     accounts :: AccountMap,
     deactivated :: [Name] } deriving Show
 
@@ -50,12 +51,14 @@ data Activity = Opening | Business | Adjustment | Closing | PostClose deriving S
 data ChartAction = Account T5 Name
                  | Accounts T5 [Name]
                  | Account' T5 Name [Name]
+                 | Offset Name [Name]
                  deriving Show
 
 toPrimitives :: ChartAction -> [Primitive]
-toPrimitives (Account  t n)    = [Add t n] 
-toPrimitives (Accounts t ns)   = map (Add t) ns
-toPrimitives (Account' t n ns) = Add t n : [Offset n c | c <- ns]      
+toPrimitives (Account  t n)    = [PAdd t n] 
+toPrimitives (Accounts t ns)   = map (PAdd t) ns
+toPrimitives (Account' t n ns) = PAdd t n : toPrimitives (Offset n ns)
+toPrimitives (Offset name ns)  = [POffset name contra | contra <- ns]      
 
 data Entry = DoubleEntry Name Name Amount | BalancedEntry [SingleEntry] deriving Show
 
@@ -70,9 +73,9 @@ data Action =   Use ChartAction
               deriving Show
 
 -- Primitives
-data Primitive = Add T5 Name
-               | Offset Name Name
-               | Record SingleEntry
-               | Drop Name  -- same as Deactivate
-               | Copy       -- copy ledger before closing accounts 
+data Primitive = PAdd T5 Name
+               | POffset Name Name
+               | PPost SingleEntry
+               | PDrop Name  -- same as Deactivate
+               | PCopy       -- copy ledger before closing accounts 
                deriving Show

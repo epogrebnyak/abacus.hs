@@ -20,15 +20,15 @@ toggle Credit = Debit
 
 -- Add primitive to chart
 dispatch :: Primitive -> ChartMap -> ChartMap
-dispatch (Add t name) chartMap = Map.insert name (Regular t) chartMap
-dispatch (Offset base contra) chartMap = if Map.member base chartMap
+dispatch (PAdd t name) chartMap = Map.insert name (Regular t) chartMap
+dispatch (POffset base contra) chartMap = if Map.member base chartMap
     then Map.insert contra (Contra base) chartMap
     else chartMap
 dispatch _ chartMap = chartMap  
 
 -- Add several prims to Chart
 dispatchMany :: ChartMap -> [Primitive] -> ChartMap
-dispatchMany chartMap = foldl (flip dispatch) chartMap
+dispatchMany = foldl (flip dispatch)
 
 -- Create ChartMap from a list of prims
 fromChartItems :: [Primitive] -> ChartMap
@@ -75,4 +75,4 @@ allPairs chartMap accName t = contraPairs chartMap t ++ accumulationPairs chartM
 
 -- Create complete list of pairs for closing temporary accounts
 closingPairs :: ChartMap -> Name -> [(Name, Name)]
-closingPairs chartMap accName = [Expense, Income] >>= (allPairs chartMap accName)
+closingPairs chartMap accName = [Expense, Income] >>= allPairs chartMap accName

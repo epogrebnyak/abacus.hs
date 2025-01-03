@@ -12,6 +12,7 @@ explain (Dropped name)       = "Account deactivated: " ++ name
 explain (NotRegular name)    = "Not regular account: " ++ name
 explain (AlreadyExists name) = "Account already exists: " ++ name
 explain (NotBalanced posts)  = "Entry not balanced: " ++ show posts -- may use sideSum
+explain OK = "No errors"
 
 -- Print account names and balances by lines
 printAccountBalances :: Ledger -> IO ()
@@ -22,7 +23,7 @@ printAccountBalances ledger = mapM_ putStrLn (accountStrings ledger)
         (name, tAccount) <- Map.toList accountMap
         return $ name ++ ": " ++ show (accountBalance tAccount)
 
--- Diagnose the Ledger for errors or print accounts
+-- Diagnose ledger for errors or print accounts
 diagnose :: Either Error Ledger -> IO ()
 diagnose (Left e) = putStrLn $ explain e
 diagnose (Right ledger) = printAccountBalances ledger

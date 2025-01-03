@@ -3,8 +3,10 @@ module Main (main) where
 import Test.HUnit
 import Abacus
 
+
+-- FIXME - must reuse from package
 account :: T5 -> Name -> [Name] -> [Primitive]
-account t name contraNames = Add t name : map (Offset name) contraNames
+account t name contraNames = PAdd t name : map (POffset name) contraNames
 
 -- Chart where contra accounts not listed alphabetically 
 chartSample :: ChartMap

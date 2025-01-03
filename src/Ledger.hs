@@ -1,6 +1,7 @@
 module Ledger where
 
 import qualified Data.Map as Map
+import Data.Maybe ( isNothing )
 import Control.Monad (foldM)
 import Control.Monad.State (State, gets, put)
 
@@ -63,10 +64,15 @@ acceptUnbalanced posts ledger = foldM acceptSingle ledger posts
 closeActions :: ChartMap -> Name -> Either Error [Action]
 closeActions chartMap accName =
     case Map.lookup accName chartMap of
-        Just (Regular Equity) -> Right $ closingPairs chartMap accName >>= toActions
+        Just (Regular Equity) -> Right $ anyClose chartMap accName
         Just _                -> Left $ NotEquity accName
         _                     -> Left $ NotFound accName
-    where toActions (fromName, toName) = [Transfer fromName toName, Deactivate fromName]
+
+-- Closing actions 
+anyClose :: ChartMap -> Name -> [Action]
+anyClose chartMap accName = concat [ 
+    [Transfer fromName toName, Deactivate fromName] 
+    | (fromName, toName) <- closingPairs chartMap accName]
 
 transferEntry :: Name -> Name -> TAccount -> Entry
 transferEntry fromName toName (TAccount side a b) =
@@ -101,7 +107,7 @@ updateOffset chartMap accMap name contraName =
             Nothing -> accMap
     in (chartMap', accMap')
 
-data Book = Book {chartM :: ChartMap, ledgerM :: AccountMap, copy :: Maybe AccountMap}
+data Book = Book {chartM :: ChartMap, ledgerM :: AccountMap, copyM :: Maybe AccountMap}
 
 emptyBook :: Book
 emptyBook = Book Map.empty Map.empty Nothing  
@@ -110,50 +116,84 @@ isRegular :: Role -> Bool
 isRegular (Regular _) = True
 isRegular _ = False
 
-allowOffset :: ChartMap -> Name -> Name -> Maybe Error
+allowOffset :: ChartMap -> Name -> Name -> Error
 allowOffset chartMap name contraName  
-   | not (chartMap `includes` name) = Just $ NotFound name
-   | chartMap `includes` contraName = Just $ AlreadyExists contraName
-   | (isRegular <$> Map.lookup name chartMap) /= Just True = Just $ NotRegular name
-   | otherwise = Nothing
+   | isNothing a = NotFound name
+   | chartMap `includes` contraName = AlreadyExists contraName
+   | (isRegular <$> a) /= Just True = NotRegular name
+   | otherwise = OK
+   where a = Map.lookup name chartMap
 
-update :: Primitive -> State Book (Maybe Error)  
+update :: Primitive -> State Book Error  
 update p = do
-    let error e = return $ Just e
     chart <- gets chartM
     ledger <- gets ledgerM
-    copy <- gets copy 
+    copy <- gets copyM 
     case p of
-        Add t name -> 
+        PAdd t name -> 
             case Map.lookup name chart of
-                Just _ -> error (AlreadyExists name)
+                Just _ -> return (AlreadyExists name)
                 Nothing -> do
                     let (chart', ledger') = updateAdd chart ledger t name
                     put $ Book chart' ledger' copy
-                    return Nothing
-        Offset name contraName ->
+                    return OK
+        POffset name contraName ->
             case allowOffset chart name contraName of
-                Just e -> error e
-                Nothing -> do
+                OK -> do
                   let (chart', ledger') = updateOffset chart ledger name contraName
                   put $ Book chart' ledger' copy
-                  return Nothing
-        Record (Single side name amount) -> 
-            if not (ledger `includes` name) then error (NotFound name) 
+                  return OK
+                e -> return e  
+        PPost (Single side name amount) -> 
+            if not (ledger `includes` name) then return (NotFound name) 
             else do
                 let tAccount' = alter side amount (ledger Map.! name)
                 let ledger' = Map.insert name tAccount' ledger
                 put $ Book chart ledger' copy
-                return Nothing
-        Drop name ->    
-            if not (ledger `includes` name) then error (NotFound name) 
+                return OK
+        PDrop name ->    
+            if not (ledger `includes` name) then return (NotFound name) 
             else do
                 let ledger' = Map.delete name ledger
                 put $ Book chart ledger' copy
-                return Nothing
-        Copy -> do 
+                return OK
+        PCopy -> do 
             put $ Book chart ledger (Just ledger)
-            return Nothing            
+            return OK            
+
+data TransactionError = NotBalanced' [SingleEntry] | NotFound' Name
+
+makeTransfer :: Name -> Name -> AccountMap -> Either TransactionError TAccount  
+makeTransfer fromName toName accMap 
+   | not (accMap `includes` fromName) = Left (NotFound' fromName)
+   | not (accMap `includes` toName) = Left (NotFound' toName)
+   | otherwise = Right (accMap Map.! fromName) 
+
+
+dec :: Action -> State Book (Either TransactionError [Primitive])
+dec (Use chartAction) = return $ Right (toPrimitives chartAction) 
+dec (Deactivate name) = return $ Right [PDrop name]
+dec (Post prose de@(DoubleEntry {})) = dec $ Post prose (toBalanced de)
+dec (Post _ (BalancedEntry singles)) = return $ 
+    if isBalanced singles 
+    then Right (PPost <$> singles) 
+    else Left (NotBalanced' singles) 
+dec (Transfer fromName toName) = do
+    accMap <- gets ledgerM
+    case makeTransfer fromName toName accMap of 
+        Left e -> return $ Left e
+        Right tAccount -> dec $ Post "Transfer entry" (transferEntry fromName toName tAccount)
+dec (Close accName) = do
+    ledger <- gets ledgerM
+    chart <- gets chartM
+    if ledger `includes` accName then do
+        let actions = anyClose chart accName
+        results <- mapM dec actions
+        case sequence results of
+            Left err -> return $ Left err
+            Right primitives -> return $ Right (concat primitives)
+    else return $ Left (NotFound' accName)
+dec _  = undefined
 
 -- Run a single ledger action
 run :: Ledger -> Action -> Either Error Ledger
@@ -166,7 +206,7 @@ run (Ledger chartMap _ names) (Use chartAction) =
 run ledger (Post prose d@(DoubleEntry {})) = run ledger $ Post prose (toBalanced d)
 run ledger (Post _ (BalancedEntry singles)) = acceptMany singles ledger
 run ledger (Close accName) = do
-    actions <- closeActions (chart ledger) accName
+    actions <- closeActions (_chartMap ledger) accName
     foldM run ledger actions
 run ledger (Transfer fromName toName) =
     case Map.lookup fromName (accounts ledger) of
