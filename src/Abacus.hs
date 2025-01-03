@@ -2,6 +2,8 @@ module Abacus (module Types,
                module Chart, 
                module Ledger, 
                module Print,
+               module Closing,
+               module Action,
                exampleStream,
                playWithThisChart,               
                playWithThisLedger               
@@ -11,6 +13,8 @@ import Types
 import Chart
 import Ledger
 import Print
+import Closing
+import Action
 
 -- Move to tests  
 playWithThisChart :: ChartMap
