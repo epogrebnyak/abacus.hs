@@ -4,6 +4,7 @@ module Abacus (module Types,
                module Print,
                module Closing,
                module Action,
+               module Experimental,
                exampleStream,
                playWithThisChart,               
                playWithThisLedger               
@@ -15,6 +16,7 @@ import Ledger
 import Print
 import Closing
 import Action
+import Experimental
 
 -- Move to tests  
 playWithThisChart :: ChartMap

@@ -58,12 +58,11 @@ library
     import:           warnings
 
     -- Modules exported by the library
-    -- FIXME: is it possible to change to submodule structure?
     exposed-modules:  Abacus 
     --, Chart, Bases, Ledger
 
     -- Modules included in this library but not exported.
-    other-modules: Types, Chart, Ledger, Print, Closing, Action
+    other-modules: Types, Chart, Ledger, Print, Closing, Action, Experimental
 
     -- LANGUAGE extensions used by modules in this package.
     -- other-extensions:
